@@ -9,6 +9,33 @@ import org.bukkit.block.Block;
 
 public class LocationUtils {
 
+    public static Location getRandomLocationInArea(int start, int end) {
+
+        int difference = end - start;
+        int random = start + CorePlugin.INSTANCE.getRandom().nextInt(difference) + 1;
+
+        World world = CorePlugin.INSTANCE.getRustWorld();
+
+        if (world.isChunkLoaded(random >> 4, random >> 4)) {
+
+            int y = world.getHighestBlockYAt(random, random);
+
+            Location location = new Location(world, random, y, random);
+            Block block = location.getBlock();
+
+            Block verifyBlock = block.getRelative(0, -1, 0);
+            Material verifyType = verifyBlock.getType();
+            byte verifyData = verifyBlock.getData();
+
+            if (isSpawnBlock(verifyType, verifyData)) {
+                return location;
+            }
+
+        }
+
+        return null;
+    }
+
     public static Location getRandomLocationInChunk(Chunk chunk) {
 
         World world = chunk.getWorld();
@@ -37,6 +64,15 @@ public class LocationUtils {
 
         return null;
     }
+
+    public static boolean isLocationInsideArea(Location location, int corner1, int corner2) {
+        double min = Math.min(corner1, corner2);
+        double max = Math.max(corner1, corner2);
+
+        return (location.getX() >= min && location.getX() <= max &&
+                location.getZ() >= min && location.getZ() <= max);
+    }
+
 
     public static boolean isLocationInsideArea(Location location, int corner1X, int corner2X, int corner1Z, int corner2Z) {
         double xMin = Math.min(corner1X, corner2X);
