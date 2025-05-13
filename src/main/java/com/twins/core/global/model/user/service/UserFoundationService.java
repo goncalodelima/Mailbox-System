@@ -1,38 +1,40 @@
 package com.twins.core.global.model.user.service;
 
+import com.twins.core.global.model.mail.Mailbox;
 import com.twins.core.global.model.user.GlobalUser;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public interface UserFoundationService {
 
-    boolean isInserting(String nickname);
-
-    void addInserting(String nickname);
-
-    void removeInserting(String nickname);
-
     void put(GlobalUser globalUser);
 
     void update(GlobalUser globalUser);
 
+    void updateNickname(UUID uuid, String nickname);
+
     CompletableFuture<List<Object[]>> update(Collection<GlobalUser> globalUsers);
 
-    void remove(String nickname);
+    List<Object[]> updateOnDisable(Collection<GlobalUser> globalUsers);
 
-    GlobalUser get(String nickname);
+    void remove(UUID uuid);
 
-    GlobalUser getData(String nickname);
+    @Nullable GlobalUser get(UUID uuid);
 
-    CompletableFuture<GlobalUser> getAsyncData(String nickname);
+    @Nullable GlobalUser getData(UUID uuid, String nickname);
+
+    CompletableFuture<GlobalUser> getAsyncData(UUID uuid);
+
+    CompletableFuture<Boolean> addMailboxAsync(UUID uuid, Mailbox mailbox);
 
     Collection<GlobalUser> getAll();
 
     CompletableFuture<List<Object[]>> getTop();
 
-    Set<GlobalUser> getPendingUpdates();
+    Map<UUID, GlobalUser> getPendingUpdates();
 
     Set<Player> getVillainOnlineUsers();
 
