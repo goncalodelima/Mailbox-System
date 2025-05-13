@@ -2,25 +2,36 @@ package com.twins.core.global.model.user.adapter;
 
 import com.minecraftsolutions.database.adapter.DatabaseAdapter;
 import com.minecraftsolutions.database.executor.DatabaseQuery;
+import com.twins.core.dailytops.DailyTopType;
 import com.twins.core.global.model.mail.Mailbox;
 import com.twins.core.global.model.mail.type.MailboxType;
 import com.twins.core.global.model.user.GlobalUser;
 import com.twins.core.global.model.user.language.LanguageType;
 import com.twins.core.monster.WaveRunnable;
 import com.twins.core.monster.type.BuffType;
+import com.twins.core.tag.TagEnum;
+import com.twins.core.utils.UUIDConverter;
 
 import java.sql.SQLException;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class UserAdapter implements DatabaseAdapter<GlobalUser> {
 
     @Override
     public GlobalUser adapt(DatabaseQuery databaseQuery) throws SQLException {
 
+        UUID uuid = UUIDConverter.convert((byte[]) databaseQuery.get("uuid"));
         String name = (String) databaseQuery.get("nickname");
         int kills = (int) databaseQuery.get("kills");
         float playTime = (float) databaseQuery.get("playTime");
         String deathLocation = (String) databaseQuery.get("deathLocation");
+        boolean firstJoin = (boolean) databaseQuery.get("firstJoin");
+        boolean firstStep = (boolean) databaseQuery.get("firstStep");
+        boolean secondStep = (boolean) databaseQuery.get("secondStep");
+        boolean thirdStep = (boolean) databaseQuery.get("thirdStep");
+        boolean fourthStep = (boolean) databaseQuery.get("fourthStep");
+        boolean fifthStep = (boolean) databaseQuery.get("fifthStep");
         boolean tutorialDone = (boolean) databaseQuery.get("tutorialDone");
         boolean beginner = (boolean) databaseQuery.get("beginner");
         boolean forceLanguage = (boolean) databaseQuery.get("forceLanguage");
@@ -38,10 +49,18 @@ public class UserAdapter implements DatabaseAdapter<GlobalUser> {
             languageType = LanguageType.EN;
         }
 
-        GlobalUser globalUser = new GlobalUser(name, kills, playTime, deathLocation, tutorialDone, languageType, forceLanguage, beginner, quit, villainPoints, conquerorPoints, new CopyOnWriteArrayList<>());
+        TagEnum tag;
+
+        try {
+            tag = TagEnum.valueOf((String) databaseQuery.get("tag"));
+        } catch (Exception exception) {
+            tag = null;
+        }
+
+        GlobalUser globalUser = new GlobalUser(uuid, name, kills, playTime, deathLocation, firstJoin, firstStep, secondStep, thirdStep, fourthStep, fifthStep, tutorialDone, languageType, forceLanguage, beginner, quit, villainPoints, conquerorPoints, ConcurrentHashMap.newKeySet(), tag);
 
         if (waveTime != null) {
-            WaveRunnable.WAVE_PLAYERS.put(name, waveTime);
+            WaveRunnable.WAVE_PLAYERS.put(uuid, waveTime);
         }
 
         do {
@@ -63,13 +82,13 @@ public class UserAdapter implements DatabaseAdapter<GlobalUser> {
 
             if (type != null) {
 
+                UUID mailboxUuid = UUIDConverter.convert((byte[]) databaseQuery.get("mailboxUuid"));
                 MailboxType mailboxType = MailboxType.valueOf(type);
                 String location = (String) databaseQuery.get("mailboxLocation");
                 long time = (long) databaseQuery.get("currentTime");
+                DailyTopType rankingType = databaseQuery.get("rankingType") == null ? null : DailyTopType.valueOf((String) databaseQuery.get("rankingType"));
 
-                if (!globalUser.containsMailbox(mailboxType, location, time)) {
-                    globalUser.getMailboxes().add(new Mailbox(mailboxType, location, time));
-                }
+                globalUser.getMailboxes().add(new Mailbox(mailboxUuid, mailboxType, location, rankingType, time));
 
             }
 
