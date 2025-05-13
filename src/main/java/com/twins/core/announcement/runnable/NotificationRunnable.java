@@ -29,8 +29,13 @@ public class NotificationRunnable extends BukkitRunnable {
 
         for (Player player : Bukkit.getOnlinePlayers()) {
 
-            GlobalUser globalUser = GlobalPlugin.INSTANCE.getUserService().get(player.getName());
-            User researchUser = ResearchPlugin.INSTANCE.getUserService().get(player.getName());
+            GlobalUser globalUser = GlobalPlugin.INSTANCE.getUserService().get(player.getUniqueId());
+
+            if (globalUser == null) {
+                continue;
+            }
+
+            User researchUser = ResearchPlugin.INSTANCE.getUserService().get(player.getUniqueId());
 
             List<Mailbox> mailboxes = new ArrayList<>();
 
