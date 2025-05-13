@@ -2,6 +2,7 @@ package com.twins.core.global.model.user.service;
 
 import com.minecraftsolutions.database.Database;
 import com.twins.core.CorePlugin;
+import com.twins.core.global.model.mail.Mailbox;
 import com.twins.core.global.model.user.GlobalUser;
 import com.twins.core.global.model.user.language.LanguageType;
 import com.twins.core.global.model.user.repository.UserFoundationRepository;
@@ -11,16 +12,13 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
 public class UserService implements UserFoundationService {
 
-    private final Map<String, GlobalUser> cache = new ConcurrentHashMap<>();
+    private final Map<UUID, GlobalUser> cache = new ConcurrentHashMap<>();
 
-    private final Set<String> insertions = ConcurrentHashMap.newKeySet();
-
-    private final Set<GlobalUser> pendingUpdates = new HashSet<>();
+    private final Map<UUID, GlobalUser> pendingUpdates = new ConcurrentHashMap<>();
 
     private final Set<Player> villainOnlineUsers = new HashSet<>();
 
@@ -33,28 +31,18 @@ public class UserService implements UserFoundationService {
     }
 
     @Override
-    public boolean isInserting(String nickname) {
-        return insertions.contains(nickname);
-    }
-
-    @Override
-    public void addInserting(String nickname) {
-        insertions.add(nickname);
-    }
-
-    @Override
-    public void removeInserting(String nickname) {
-        insertions.remove(nickname);
-    }
-
-    @Override
     public void put(GlobalUser globalUser) {
-        cache.put(globalUser.getName(), globalUser);
+        cache.put(globalUser.getUuid(), globalUser);
     }
 
     @Override
     public void update(GlobalUser globalUser) {
-        pendingUpdates.add(globalUser);
+        pendingUpdates.put(globalUser.getUuid(), globalUser);
+    }
+
+    @Override
+    public void updateNickname(UUID uuid, String nickname) {
+        userRepository.updateNickname(uuid, nickname);
     }
 
     @Override
@@ -63,28 +51,48 @@ public class UserService implements UserFoundationService {
     }
 
     @Override
-    public void remove(String nickname) {
-        cache.remove(nickname);
+    public List<Object[]> updateOnDisable(Collection<GlobalUser> globalUsers) {
+        return userRepository.insertOrUpdateOnDisable(globalUsers);
     }
 
     @Override
-    public GlobalUser get(String nickname) {
-        return cache.get(nickname);
+    public void remove(UUID uuid) {
+        cache.remove(uuid);
     }
 
     @Override
-    public GlobalUser getData(String nickname) {
-        GlobalUser userRepositoryOne = userRepository.findOne(nickname);
-        return Objects.requireNonNullElseGet(userRepositoryOne, () -> new GlobalUser(nickname, 0, 0, null, false, LanguageType.EN, true, true, false, 0, 0, new CopyOnWriteArrayList<>()));
+    public GlobalUser get(UUID uuid) {
+        return cache.get(uuid);
     }
 
     @Override
-    public CompletableFuture<GlobalUser> getAsyncData(String nickname) {
-        return CompletableFuture.supplyAsync(() -> userRepository.findOne(nickname), CorePlugin.INSTANCE.getAsyncExecutor())
-                .exceptionally(e -> {
-                    CorePlugin.INSTANCE.getLogger().log(Level.SEVERE, "Failed to retrieve global user data", e);
-                    return null;
-                });
+    public GlobalUser getData(UUID uuid, String nickname) {
+
+        try {
+            GlobalUser userRepositoryOne = userRepository.findOne(uuid);
+            return Objects.requireNonNullElseGet(userRepositoryOne, () -> new GlobalUser(uuid, nickname, 0, 0, null, true, false, false, false, false, false, false, LanguageType.EN, true, true, false, 0, 0, ConcurrentHashMap.newKeySet(), null));
+        } catch (Exception e) {
+            return null;
+        }
+
+    }
+
+    @Override
+    public CompletableFuture<GlobalUser> getAsyncData(UUID uuid) {
+        return CompletableFuture.supplyAsync(() -> {
+
+            try {
+                return userRepository.findOne(uuid);
+            } catch (Exception e) {
+                return null;
+            }
+
+        }, CorePlugin.INSTANCE.getAsyncExecutor());
+    }
+
+    @Override
+    public CompletableFuture<Boolean> addMailboxAsync(UUID uuid, Mailbox mailbox) {
+        return userRepository.addMailboxAsync(uuid, mailbox);
     }
 
     @Override
@@ -102,7 +110,7 @@ public class UserService implements UserFoundationService {
     }
 
     @Override
-    public Set<GlobalUser> getPendingUpdates() {
+    public Map<UUID, GlobalUser> getPendingUpdates() {
         return pendingUpdates;
     }
 
