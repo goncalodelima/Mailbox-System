@@ -6,6 +6,7 @@ import com.twins.core.global.model.mail.Mailbox;
 import com.twins.core.global.model.mail.type.MailboxType;
 import com.twins.core.global.model.user.GlobalUser;
 import com.twins.core.global.model.user.language.LanguageType;
+import com.twins.core.utils.BukkitUtils;
 import com.twins.core.utils.Configuration;
 import me.devnatan.inventoryframework.View;
 import me.devnatan.inventoryframework.ViewConfigBuilder;
@@ -14,6 +15,8 @@ import me.devnatan.inventoryframework.context.Context;
 import me.devnatan.inventoryframework.context.RenderContext;
 import me.devnatan.inventoryframework.state.State;
 import net.dmulloy2.util.TimeUtil;
+import net.splodgebox.monthlycrates.MonthlyCrates;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -40,9 +43,9 @@ public class MailboxInventory extends View {
         this.paginationState = computedPaginationState(context -> {
 
                     Player player = context.getPlayer();
-                    GlobalUser globalUser = plugin.getUserService().get(player.getName());
+                    GlobalUser globalUser = plugin.getUserService().get(player.getUniqueId());
 
-                    if (globalUser.getMailboxes().isEmpty()) {
+                    if (globalUser == null || globalUser.getMailboxes().isEmpty()) {
 
                         List<Mailbox> list = new ArrayList<>();
                         list.add(new Mailbox(null, null, 0));
@@ -71,10 +74,10 @@ public class MailboxInventory extends View {
                 (context, itemComponentBuilder, i, mailbox) -> {
 
                     Player player = context.getPlayer();
-                    GlobalUser globalUser = plugin.getUserService().get(player.getName());
+                    GlobalUser globalUser = plugin.getUserService().get(player.getUniqueId());
 
-                    if (mailbox.getType() == null) {
-                        itemComponentBuilder.withSlot(13).withItem(none);
+                    if (globalUser == null || mailbox.getType() == null) {
+                        itemComponentBuilder.withSlot(22).withItem(none);
                     } else {
 
                         itemComponentBuilder.withItem(
@@ -83,9 +86,22 @@ public class MailboxInventory extends View {
                                         .setLore(get(mailbox, globalUser.getLanguageType()))
                                         .build()
                         ).onClick(click -> {
+
+                            Location playerLocation = player.getLocation();
+
+                            if (mailbox.getType() == MailboxType.DAILY_TOP_REWARD) {
+
+                                ItemStack hydra = MonthlyCrates.getInstance().getCrateController().getCrates().get("hydra").create(player.getName(), 2);
+                                ItemStack darius = MonthlyCrates.getInstance().getCrateController().getCrates().get("darius").create(player.getName(), 1);
+
+                                BukkitUtils.addItemToPlayerInventory(player, playerLocation, hydra);
+                                BukkitUtils.addItemToPlayerInventory(player, playerLocation, darius);
+
+                            }
+
                             mailbox.setToDelete(true);
                             plugin.getUserService().update(globalUser);
-                            player.playSound(player.getLocation(), Sound.ORB_PICKUP, 1, 1);
+                            player.playSound(playerLocation, Sound.ORB_PICKUP, 1, 1);
                             click.update();
                         });
 
@@ -102,13 +118,12 @@ public class MailboxInventory extends View {
         render.layoutSlot('<', back)
                 .updateOnStateChange(paginationState)
                 .displayIf(() -> pagination.currentPageIndex() != 0)
-                .onClick(_ -> pagination.back());
+                .onClick(pagination::back);
 
         render.layoutSlot('>', next)
                 .updateOnStateChange(paginationState)
                 .displayIf(() -> pagination.currentPageIndex() < pagination.lastPageIndex())
-                .onClick(_ -> pagination.advance());
-
+                .onClick(pagination::advance);
     }
 
     @Override
@@ -120,9 +135,12 @@ public class MailboxInventory extends View {
     public void onInit(ViewConfigBuilder config) {
         config
                 .title("Mailbox")
-                .size(3)
+                .size(6)
                 .layout(
                         "         ",
+                        " OOOOOOO ",
+                        " OOOOOOO ",
+                        " OOOOOOO ",
                         " OOOOOOO ",
                         "<       >"
                 )
@@ -137,6 +155,12 @@ public class MailboxInventory extends View {
 
         if (mailbox.getType() == MailboxType.QUIT_CRAFT) {
             return inventory.getStringList(type, "mailbox.quit_craft");
+        }
+
+        if (mailbox.getType() == MailboxType.DAILY_TOP_REWARD) {
+            List<String> mailboxLore = inventory.getStringList(type, "mailbox.daily_top_reward");
+            mailboxLore.replaceAll(string -> string.replace("%type%", mailbox.getRankingType().name()));
+            return mailboxLore;
         }
 
         List<String> mailboxLore;
